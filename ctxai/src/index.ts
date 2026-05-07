@@ -5,12 +5,10 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { getProjectContext } from "./tools/getProjectContext.js";
-import { getPackageDocs } from "./tools/getPackageDocs.js";
 // Import tool logic (to be implemented next)
-// import { getProjectContext } from "./tools/getProjectContext.js";
-// import { validateSuggestion } from "./tools/validateSuggestion.js";
-// import { getPackageDocs } from "./tools/getPackageDocs.js";
+import { getProjectContext } from "./tools/getProjectContext.js";
+import { validateSuggestion } from "./tools/validateSuggestion.js";
+import { getPackageDocs } from "./tools/getPackageDocs.js";
 
 const server = new Server(
   {
@@ -92,25 +90,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
-      case "get_project_context":
-        // TODO: Call implementation from ./tools/getProjectContext.ts
-        return {
-          content: [{ type: "text", text: "Project context logic pending..." }],
+
+      case "validate_suggestion": {
+        const { code, contextFingerprint } = args as {
+          code: string;
+          contextFingerprint: string;
         };
 
-      case "validate_suggestion":
-        // TODO: Call implementation from ./tools/validateSuggestion.ts
-        return {
-          content: [{ type: "text", text: "Validation logic pending..." }],
-        };
+        if (!code || !contextFingerprint) {
+          throw new Error("Missing required arguments for validate_suggestion");
+        }
 
-      case "get_package_docs":
-        // TODO: Call implementation from ./tools/getPackageDocs.ts
+        const warnings = await validateSuggestion(code, contextFingerprint);
         return {
           content: [
-            { type: "text", text: "Documentation retrieval pending..." },
+            {
+              type: "text",
+              text:
+                warnings.length > 0
+                  ? JSON.stringify(
+                      { status: "warnings", issues: warnings },
+                      null,
+                      2,
+                    )
+                  : JSON.stringify({
+                      status: "ok",
+                      message: "No hallucinations detected.",
+                    }),
+            },
           ],
         };
+      };
 
       case "get_project_context": {
         if (typeof args?.path !== "string") {

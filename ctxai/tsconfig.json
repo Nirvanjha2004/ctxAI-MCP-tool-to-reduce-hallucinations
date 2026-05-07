@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",                /* Modern JavaScript target */
+    "module": "NodeNext",              /* Required for modern Node.js ESM support */
+    "moduleResolution": "NodeNext",    /* Matches the module strategy */
+    "outDir": "./build",               /* Where the compiled .js files go */
+    "rootDir": "./src",                /* Where your .ts files live */
+    "strict": true,                    /* Enable all strict type-checking options */
+    "esModuleInterop": true,           /* Compatibility for non-ESM packages */
+    "skipLibCheck": true,              /* Faster builds by skipping d.ts checks */
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,               /* Generates .d.ts files for better IDE support */
+    "sourceMap": true                  /* Helpful for debugging if things crash */
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "build", "benchmark"]
+}

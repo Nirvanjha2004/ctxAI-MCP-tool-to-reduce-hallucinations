@@ -6,6 +6,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { getProjectContext } from "./tools/getProjectContext.js";
+import { getPackageDocs } from "./tools/getPackageDocs.js";
 // Import tool logic (to be implemented next)
 // import { getProjectContext } from "./tools/getProjectContext.js";
 // import { validateSuggestion } from "./tools/validateSuggestion.js";
@@ -119,6 +120,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         const contextText = await getProjectContext(args.path);
         return { content: [{ type: "text", text: contextText }] };
+      }
+      case "get_package_docs": {
+        const { packageName, version, registry } = args as {
+          packageName: string;
+          version: string;
+          registry: "npm" | "pypi";
+        };
+
+        if (!packageName || !version || !registry) {
+          throw new Error("Missing arguments for get_package_docs");
+        }
+
+        const docs = await getPackageDocs(packageName, version, registry);
+        return {
+          content: [{ type: "text", text: docs }],
+        };
       }
       default:
         throw new Error(`Unknown tool: ${name}`);

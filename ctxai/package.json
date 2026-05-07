@@ -1,0 +1,24 @@
+{
+  "name": "ctxai",
+  "version": "0.1.0",
+  "description": "MCP server for project-aware context and hallucination filtering",
+  "type": "module",
+  "bin": {
+    "ctxai": "./build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "dev": "tsx src/index.ts",
+    "watch": "tsc -w",
+    "benchmark": "tsx benchmark/run.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "tsx": "^4.7.0"
+  }
+}

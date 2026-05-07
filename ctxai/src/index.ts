@@ -5,7 +5,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-
+import { getProjectContext } from "./tools/getProjectContext.js";
 // Import tool logic (to be implemented next)
 // import { getProjectContext } from "./tools/getProjectContext.js";
 // import { validateSuggestion } from "./tools/validateSuggestion.js";
@@ -20,7 +20,7 @@ const server = new Server(
     capabilities: {
       tools: {},
     },
-  }
+  },
 );
 
 /**
@@ -32,38 +32,50 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "get_project_context",
-        description: "Retrieves the local project's tech stack, installed packages, and versions.",
+        description:
+          "Retrieves the local project's tech stack, installed packages, and versions.",
         inputSchema: {
           type: "object",
           properties: {
-            path: { type: "string", description: "Absolute path to project root" }
+            path: {
+              type: "string",
+              description: "Absolute path to project root",
+            },
           },
-          required: ["path"]
+          required: ["path"],
         },
       },
       {
         name: "validate_suggestion",
-        description: "Checks AI-generated code for hallucinated imports or method calls against local project constraints.",
+        description:
+          "Checks AI-generated code for hallucinated imports or method calls against local project constraints.",
         inputSchema: {
           type: "object",
           properties: {
-            code: { type: "string", description: "The code snippet to validate" },
-            contextFingerprint: { type: "string", description: "The fingerprint returned by get_project_context" }
+            code: {
+              type: "string",
+              description: "The code snippet to validate",
+            },
+            contextFingerprint: {
+              type: "string",
+              description: "The fingerprint returned by get_project_context",
+            },
           },
-          required: ["code", "contextFingerprint"]
+          required: ["code", "contextFingerprint"],
         },
       },
       {
         name: "get_package_docs",
-        description: "Fetches the real API surface/documentation for a specific package and version from npm/PyPI.",
+        description:
+          "Fetches the real API surface/documentation for a specific package and version from npm/PyPI.",
         inputSchema: {
           type: "object",
           properties: {
             packageName: { type: "string" },
             version: { type: "string" },
-            registry: { type: "string", enum: ["npm", "pypi"] }
+            registry: { type: "string", enum: ["npm", "pypi"] },
           },
-          required: ["packageName", "version", "registry"]
+          required: ["packageName", "version", "registry"],
         },
       },
     ],
@@ -81,16 +93,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case "get_project_context":
         // TODO: Call implementation from ./tools/getProjectContext.ts
-        return { content: [{ type: "text", text: "Project context logic pending..." }] };
+        return {
+          content: [{ type: "text", text: "Project context logic pending..." }],
+        };
 
       case "validate_suggestion":
         // TODO: Call implementation from ./tools/validateSuggestion.ts
-        return { content: [{ type: "text", text: "Validation logic pending..." }] };
+        return {
+          content: [{ type: "text", text: "Validation logic pending..." }],
+        };
 
       case "get_package_docs":
         // TODO: Call implementation from ./tools/getPackageDocs.ts
-        return { content: [{ type: "text", text: "Documentation retrieval pending..." }] };
+        return {
+          content: [
+            { type: "text", text: "Documentation retrieval pending..." },
+          ],
+        };
 
+      case "get_project_context": {
+        if (typeof args?.path !== "string") {
+          throw new Error(
+            "Missing or invalid argument 'path' for get_project_context",
+          );
+        }
+        const contextText = await getProjectContext(args.path);
+        return { content: [{ type: "text", text: contextText }] };
+      }
       default:
         throw new Error(`Unknown tool: ${name}`);
     }

@@ -1,0 +1,6 @@
+{
+  "name": "FastAPI - Missing Pydantic Settings",
+  "projectFingerprint": "python:fastapi@0.100.0\npython:pydantic@2.1.1",
+  "aiGeneratedCode": "from fastapi import FastAPI\nfrom pydantic_settings import BaseSettings\n\napp = FastAPI()\nclass Settings(BaseSettings):\n    db_url: str",
+  "expectedViolations": 1
+}

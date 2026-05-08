@@ -1,0 +1,37 @@
+[
+  {
+    "testName": "Express - Missing Package Hallucination",
+    "status": "PASS",
+    "expected": 1,
+    "actual": 1,
+    "warningsFound": [
+      "The AI suggested using 'cors', but it is not installed in your project."
+    ]
+  },
+  {
+    "testName": "FastAPI - Missing Pydantic Settings",
+    "status": "FAIL",
+    "expected": 1,
+    "actual": 0,
+    "warningsFound": []
+  },
+  {
+    "testName": "Next.js 13 - Missing Icon Library",
+    "status": "FAIL",
+    "expected": 1,
+    "actual": 2,
+    "warningsFound": [
+      "The AI suggested using 'next/navigation', but it is not installed in your project.",
+      "The AI suggested using 'lucide-react', but it is not installed in your project."
+    ]
+  },
+  {
+    "testName": "Prisma - Version Mismatch",
+    "status": "FAIL",
+    "expected": 0,
+    "actual": 1,
+    "warningsFound": [
+      "The AI suggested using '@prisma/client', but it is not installed in your project."
+    ]
+  }
+]

@@ -1,0 +1,6 @@
+{
+  "name": "Axios - Valid Usage (No Violations)",
+  "projectFingerprint": "node: axios@1.4.0",
+  "aiGeneratedCode": "import axios from 'axios';\n\nconst response = await axios.get('https://api.example.com/users');\nconsole.log(response.data);",
+  "expectedViolations": 0
+}

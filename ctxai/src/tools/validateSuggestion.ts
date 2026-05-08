@@ -13,45 +13,132 @@
  *   Layer 3 — Closest alternative  (what did the AI probably mean?)
  */
 
-import { parseResponse, type ExtractedIdentifier } from "../parser/responseParser.js"
-import { getModuleApiSurface } from "../detectors/node.js"
-import { getPythonApiSurface } from "../detectors/python.js"
-import { getClosestMatch } from "../utils/fuzzy.js"
-import { sessionCache } from "../cache/sessionCache.js"
-import path from "path"
+import {
+  parseResponse,
+  type ExtractedIdentifier,
+} from "../parser/responseParser.js";
+import { getModuleApiSurface } from "../detectors/node.js";
+import { getPythonApiSurface } from "../detectors/python.js";
+import { getClosestMatch } from "../utils/fuzzy.js";
+import { sessionCache } from "../cache/sessionCache.js";
+import path from "path";
+
+// ---------------------------------------------------------------------------
+// Module-level constants (built once, reused across every validateSuggestion call)
+// ---------------------------------------------------------------------------
+
+/**
+ * Common local variable names that are never package names.
+ * Single-character variables (r, z, _, e, t, …) are almost always
+ * destructured aliases or loop variables, not packages.
+ */
+const LOCAL_VARIABLE_NAMES = new Set([
+  // generic app/server locals
+  "app", "server", "router", "client", "db", "database", "conn",
+  "connection", "pool", "handler", "middleware", "req", "res", "ctx",
+  "next", "err", "error", "result", "response", "data", "config",
+  "options", "instance", "service", "model", "schema", "query",
+  "self", "this",
+  // ORM / framework base classes
+  "base", "entity", "document", "collection", "table", "record",
+  "session", "transaction", "cursor",
+  // all single-character identifiers
+  ...Array.from("abcdefghijklmnopqrstuvwxyz_$"),
+  ...Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
+]);
+
+/**
+ * Node.js built-in module names — never installed via npm, always available.
+ * Importing them should never trigger a MISSING_PACKAGE or UNKNOWN_PACKAGE warning.
+ */
+const NODE_BUILTINS = new Set([
+  "assert", "async_hooks", "buffer", "child_process", "cluster",
+  "console", "constants", "crypto", "dgram", "diagnostics_channel",
+  "dns", "domain", "events", "fs", "http", "http2", "https",
+  "inspector", "module", "net", "os", "path", "perf_hooks",
+  "process", "punycode", "querystring", "readline", "repl",
+  "stream", "string_decoder", "timers", "tls", "trace_events",
+  "tty", "url", "util", "v8", "vm", "wasi", "worker_threads", "zlib",
+  // node: protocol variants (e.g. import fs from 'node:fs')
+  "node:assert", "node:buffer", "node:child_process", "node:cluster",
+  "node:crypto", "node:dns", "node:events", "node:fs", "node:http",
+  "node:https", "node:net", "node:os", "node:path", "node:process",
+  "node:readline", "node:stream", "node:timers", "node:tls",
+  "node:url", "node:util", "node:worker_threads", "node:zlib",
+]);
+
+/**
+ * Python standard library module names — always available, never pip-installed.
+ */
+const PYTHON_STDLIB = new Set([
+  "abc", "ast", "asyncio", "base64", "binascii", "builtins",
+  "calendar", "cgi", "cgitb", "chunk", "cmath", "cmd", "code",
+  "codecs", "codeop", "collections", "colorsys", "compileall",
+  "concurrent", "configparser", "contextlib", "contextvars",
+  "copy", "copyreg", "csv", "ctypes", "curses", "dataclasses",
+  "datetime", "dbm", "decimal", "difflib", "dis", "doctest",
+  "email", "encodings", "enum", "errno", "faulthandler",
+  "fcntl", "filecmp", "fileinput", "fnmatch", "fractions",
+  "ftplib", "functools", "gc", "getopt", "getpass", "gettext",
+  "glob", "grp", "gzip", "hashlib", "heapq", "hmac", "html",
+  "http", "idlelib", "imaplib", "importlib", "inspect", "io",
+  "ipaddress", "itertools", "json", "keyword", "lib2to3",
+  "linecache", "locale", "logging", "lzma", "mailbox", "math",
+  "mimetypes", "mmap", "modulefinder", "multiprocessing",
+  "netrc", "nis", "nntplib", "numbers", "operator", "optparse",
+  "os", "ossaudiodev", "pathlib", "pdb", "pickle", "pickletools",
+  "pipes", "pkgutil", "platform", "plistlib", "poplib", "posix",
+  "posixpath", "pprint", "profile", "pstats", "pty", "pwd",
+  "py_compile", "pyclbr", "pydoc", "queue", "quopri", "random",
+  "re", "readline", "reprlib", "resource", "rlcompleter",
+  "runpy", "sched", "secrets", "select", "selectors", "shelve",
+  "shlex", "shutil", "signal", "site", "smtpd", "smtplib",
+  "sndhdr", "socket", "socketserver", "spwd", "sqlite3", "sre_compile",
+  "sre_constants", "sre_parse", "ssl", "stat", "statistics",
+  "string", "stringprep", "struct", "subprocess", "sunau",
+  "symtable", "sys", "sysconfig", "syslog", "tabnanny",
+  "tarfile", "telnetlib", "tempfile", "termios", "test",
+  "textwrap", "threading", "time", "timeit", "tkinter",
+  "token", "tokenize", "tomllib", "trace", "traceback",
+  "tracemalloc", "tty", "turtle", "turtledemo", "types",
+  "typing", "unicodedata", "unittest", "urllib", "uu",
+  "uuid", "venv", "warnings", "wave", "weakref", "webbrowser",
+  "wsgiref", "xdrlib", "xml", "xmlrpc", "zipapp", "zipfile",
+  "zipimport", "zlib", "zoneinfo",
+]);
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type WarningSeverity = "error" | "warning" | "info"
+export type WarningSeverity = "error" | "warning" | "info";
 
 export interface ValidationWarning {
   /** MISSING_PACKAGE | HALLUCINATED_METHOD | UNKNOWN_PACKAGE */
-  type: "MISSING_PACKAGE" | "HALLUCINATED_METHOD" | "UNKNOWN_PACKAGE"
-  severity: WarningSeverity
+  type: "MISSING_PACKAGE" | "HALLUCINATED_METHOD" | "UNKNOWN_PACKAGE";
+  severity: WarningSeverity;
   /** Human-readable description of the problem */
-  message: string
+  message: string;
   /** What the developer should do instead */
-  suggestion: string
+  suggestion: string;
   /** The exact string from the AI response that triggered this warning */
-  offender: string
+  offender: string;
   /** Package context if known */
-  packageName?: string
+  packageName?: string;
   /** Installed version if known */
-  installedVersion?: string
+  installedVersion?: string;
 }
 
 interface InstalledPackage {
   /** Exact version resolved from node_modules or pip, e.g. "3.15.2" */
-  version: string
+  version: string;
   /** "node" | "python" */
-  source: "node" | "python"
+  source: "node" | "python";
   /**
    * Canonical package name as it appears in node_modules or site-packages.
    * May differ from the key used in package.json (e.g. "@prisma/client" vs "prisma").
    */
-  canonical: string
+  canonical: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,70 +162,79 @@ interface InstalledPackage {
  * (e.g. "prisma" → "@prisma/client").
  */
 function parseFingerprint(fingerprint: string): {
-  installed: Map<string, InstalledPackage>
-  aliases: Map<string, string>
+  installed: Map<string, InstalledPackage>;
+  aliases: Map<string, string>;
 } {
-  const installed = new Map<string, InstalledPackage>()
-  const aliases = new Map<string, string>()
+  const installed = new Map<string, InstalledPackage>();
+  const aliases = new Map<string, string>();
 
   if (!fingerprint || !fingerprint.trim()) {
-    return { installed, aliases }
+    return { installed, aliases };
   }
 
   for (const raw of fingerprint.split("\n")) {
-    const line = raw.trim()
-    if (!line) continue
+    const line = raw.trim();
+    if (!line) continue;
 
     // Expected: "source: packageName@version"
     // source = "node" or "python"
     // We split on the first ": " only
-    const colonIdx = line.indexOf(": ")
-    if (colonIdx === -1) continue
+    const colonIdx = line.indexOf(": ");
+    if (colonIdx === -1) continue;
 
-    const source = line.slice(0, colonIdx).toLowerCase().trim()
-    if (source !== "node" && source !== "python") continue
+    const source = line.slice(0, colonIdx).toLowerCase().trim();
+    if (source !== "node" && source !== "python") continue;
 
-    const packageToken = line.slice(colonIdx + 2).trim()
-    if (!packageToken) continue
+    const packageToken = line.slice(colonIdx + 2).trim();
+    if (!packageToken) continue;
 
     // Split on the LAST "@" to handle scoped packages like "@prisma/client@3.15.2"
-    const lastAt = packageToken.lastIndexOf("@")
-    if (lastAt <= 0) continue  // no version found or starts with "@" with no version
+    const lastAt = packageToken.lastIndexOf("@");
+    if (lastAt <= 0) continue; // no version found or starts with "@" with no version
 
-    const canonical = packageToken.slice(0, lastAt)
-    const version = packageToken.slice(lastAt + 1)
+    const canonical = packageToken.slice(0, lastAt);
+    const version = packageToken.slice(lastAt + 1);
 
-    if (!canonical || !version) continue
+    if (!canonical || !version) continue;
 
-    const key = canonical.toLowerCase()
+    const key = canonical.toLowerCase();
     const pkg: InstalledPackage = {
       version,
       source: source as "node" | "python",
       canonical,
-    }
+    };
 
-    installed.set(key, pkg)
+    installed.set(key, pkg);
 
     // Build aliases for common short-hand names so method resolution works
     // when a variable named "prisma" actually maps to "@prisma/client"
-    if (canonical.includes("/")) {
-      // @scope/name → register "name" as alias too
-      const shortName = canonical.split("/").pop()!.toLowerCase()
-      if (!installed.has(shortName)) {
-        aliases.set(shortName, key)
+    // NEW — for scoped packages, alias both scope name and leaf
+    if (canonical.startsWith("@")) {
+      // @prisma/client → "prisma" (most useful alias)
+      const scopeName = canonical.split("/")[0].replace("@", "").toLowerCase();
+      if (!installed.has(scopeName)) aliases.set(scopeName, key);
+
+      // @prisma/client → "client" (less useful but covers edge cases)
+      const leafName = canonical.split("/").pop()!.toLowerCase();
+      if (!installed.has(leafName) && leafName !== scopeName) {
+        aliases.set(leafName, key);
       }
+    } else if (canonical.includes("/")) {
+      // non-scoped subpath: react-dom/client → "react-dom"
+      const baseName = canonical.split("/")[0].toLowerCase();
+      if (!installed.has(baseName)) aliases.set(baseName, key);
     }
 
     // Python: register both underscore and hyphen versions
     if (source === "python") {
-      const withHyphen = canonical.replace(/_/g, "-").toLowerCase()
-      const withUnderscore = canonical.replace(/-/g, "_").toLowerCase()
-      if (withHyphen !== key) aliases.set(withHyphen, key)
-      if (withUnderscore !== key) aliases.set(withUnderscore, key)
+      const withHyphen = canonical.replace(/_/g, "-").toLowerCase();
+      const withUnderscore = canonical.replace(/-/g, "_").toLowerCase();
+      if (withHyphen !== key) aliases.set(withHyphen, key);
+      if (withUnderscore !== key) aliases.set(withUnderscore, key);
     }
   }
 
-  return { installed, aliases }
+  return { installed, aliases };
 }
 
 // ---------------------------------------------------------------------------
@@ -162,22 +258,23 @@ function resolvePackage(
   installed: Map<string, InstalledPackage>,
   aliases: Map<string, string>,
 ): InstalledPackage | undefined {
-  const key = name.toLowerCase().replace(/_/g, "-")
+  const key = name.toLowerCase().replace(/_/g, "-");
 
   // 1. Exact match
-  if (installed.has(key)) return installed.get(key)!
+  if (installed.has(key)) return installed.get(key)!;
 
   // 2. Alias lookup
-  const aliasTarget = aliases.get(key)
-  if (aliasTarget && installed.has(aliasTarget)) return installed.get(aliasTarget)!
+  const aliasTarget = aliases.get(key);
+  if (aliasTarget && installed.has(aliasTarget))
+    return installed.get(aliasTarget)!;
 
   // 3. Python: try both _ and - variants
-  const hyphenKey = key.replace(/_/g, "-")
-  if (installed.has(hyphenKey)) return installed.get(hyphenKey)!
-  const underscoreKey = key.replace(/-/g, "_")
-  if (installed.has(underscoreKey)) return installed.get(underscoreKey)!
+  const hyphenKey = key.replace(/_/g, "-");
+  if (installed.has(hyphenKey)) return installed.get(hyphenKey)!;
+  const underscoreKey = key.replace(/-/g, "_");
+  if (installed.has(underscoreKey)) return installed.get(underscoreKey)!;
 
-  return undefined
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -192,17 +289,17 @@ async function withTimeout<T>(
   promise: Promise<T>,
   ms: number,
 ): Promise<T | undefined> {
-  let timer: ReturnType<typeof setTimeout>
+  let timer: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<undefined>((resolve) => {
-    timer = setTimeout(() => resolve(undefined), ms)
-  })
+    timer = setTimeout(() => resolve(undefined), ms);
+  });
   try {
-    const result = await Promise.race([promise, timeoutPromise])
-    clearTimeout(timer!)
-    return result
+    const result = await Promise.race([promise, timeoutPromise]);
+    clearTimeout(timer!);
+    return result;
   } catch {
-    clearTimeout(timer!)
-    return undefined
+    clearTimeout(timer!);
+    return undefined;
   }
 }
 
@@ -219,43 +316,43 @@ async function getApiSurface(
   pkg: InstalledPackage,
   projectPath: string,
 ): Promise<string[]> {
-  const cacheKey = `api:${pkg.canonical}:${pkg.version}`
+  const cacheKey = `api:${pkg.canonical}:${pkg.version}`;
 
   // Check cache — stored as JSON string to support the generic cache interface
-  const cached = sessionCache.get(cacheKey)
+  const cached = sessionCache.get(cacheKey);
   if (cached) {
     try {
-      const parsed = JSON.parse(cached.fingerprint)
-      if (Array.isArray(parsed)) return parsed as string[]
+      const parsed = JSON.parse(cached.fingerprint);
+      if (Array.isArray(parsed)) return parsed as string[];
     } catch {
       // corrupted cache entry — fall through to re-fetch
     }
   }
 
-  let methods: string[] | undefined
+  let methods: string[] | undefined;
 
   try {
     if (pkg.source === "node") {
-      const modulePath = path.join(projectPath, "node_modules", pkg.canonical)
-      methods = await withTimeout(getModuleApiSurface(modulePath), 5_000)
+      const modulePath = path.join(projectPath, "node_modules", pkg.canonical);
+      methods = await withTimeout(getModuleApiSurface(modulePath), 5_000);
     } else if (pkg.source === "python") {
-      methods = await withTimeout(getPythonApiSurface(pkg.canonical), 5_000)
+      methods = await withTimeout(getPythonApiSurface(pkg.canonical), 5_000);
     }
   } catch {
     // detector threw — treat as no data
   }
 
-  const surface = methods && methods.length > 0 ? methods : []
+  const surface = methods && methods.length > 0 ? methods : [];
 
   if (surface.length > 0) {
     sessionCache.set(cacheKey, {
       fingerprint: JSON.stringify(surface),
       packageCount: surface.length,
-      timestamp: Date.now()
-    })
+      timestamp: Date.now(),
+    });
   }
 
-  return surface
+  return surface;
 }
 
 // ---------------------------------------------------------------------------
@@ -275,30 +372,33 @@ export async function validateSuggestion(
   projectPath: string,
   contextFingerprint: string,
 ): Promise<ValidationWarning[]> {
-  const warnings: ValidationWarning[] = []
+  const warnings: ValidationWarning[] = [];
 
   // Parse fingerprint into a structured map
-  const { installed, aliases } = parseFingerprint(contextFingerprint)
+  const { installed, aliases } = parseFingerprint(contextFingerprint);
   // If we have no fingerprint data, we can't validate anything — return early
   // rather than emitting false positives
-  if (installed.size === 0) return warnings
+  if (installed.size === 0) return warnings;
 
   // Extract all identifiers from the AI response
-  const identifiers: ExtractedIdentifier[] = parseResponse(code)
+  const identifiers: ExtractedIdentifier[] = parseResponse(code);
 
   // Track which packages we've already warned about being missing
   // to avoid duplicate MISSING_PACKAGE warnings
-  const warnedMissing = new Set<string>()
+  const warnedMissing = new Set<string>();
 
   // ── Layer 1: Package existence ──────────────────────────────────────────
   for (const id of identifiers) {
-    if (id.type !== "import") continue
+    if (id.type !== "import") continue;
 
-    const pkg = resolvePackage(id.name, installed, aliases)
-    if (pkg) continue  // found — no warning needed
+    // Never flag Node.js built-ins or Python stdlib as missing
+    if (NODE_BUILTINS.has(id.name) || PYTHON_STDLIB.has(id.name)) continue;
 
-    if (warnedMissing.has(id.name)) continue
-    warnedMissing.add(id.name)
+    const pkg = resolvePackage(id.name, installed, aliases);
+    if (pkg) continue; // found — no warning needed
+
+    if (warnedMissing.has(id.name)) continue;
+    warnedMissing.add(id.name);
 
     warnings.push({
       type: "MISSING_PACKAGE",
@@ -306,49 +406,58 @@ export async function validateSuggestion(
       message: `'${id.name}' is not listed in your project dependencies.`,
       suggestion: `Run 'npm install ${id.name}' or 'pip install ${id.name}' to add it, or check if the package name has changed.`,
       offender: id.name,
-    })
+    });
   }
 
   // ── Layer 2: Method existence ────────────────────────────────────────────
   // Group method_call identifiers by their context (root variable name)
   // so we only fetch the API surface once per package per validation run
-  const methodsByContext = new Map<string, ExtractedIdentifier[]>()
+  const methodsByContext = new Map<string, ExtractedIdentifier[]>();
   for (const id of identifiers) {
-    if (id.type !== "method_call" || !id.context) continue
-    const list = methodsByContext.get(id.context) ?? []
-    list.push(id)
-    methodsByContext.set(id.context, list)
+    if (id.type !== "method_call" || !id.context) continue;
+    const list = methodsByContext.get(id.context) ?? [];
+    list.push(id);
+    methodsByContext.set(id.context, list);
   }
 
   for (const [context, methods] of methodsByContext) {
     // Resolve the context variable name to an installed package
-    const pkg = resolvePackage(context, installed, aliases)
+    const pkg = resolvePackage(context, installed, aliases);
+
     if (!pkg) {
-      // We can't validate method calls when we don't know the package.
-      // Emit a low-severity info warning rather than a false positive error.
-      // Only warn once per context variable.
+      // Fix 1: Skip if this context was already flagged as a MISSING_PACKAGE
+      //        in Layer 1 — avoids double-counting the same package.
+      if (warnedMissing.has(context)) continue;
+
+      // Fix 2: Skip known local variable names and single-char aliases.
+      if (LOCAL_VARIABLE_NAMES.has(context.toLowerCase())) continue;
+
+      // Fix 3: Skip Node.js built-ins and Python stdlib used as method contexts
+      //        (e.g. crypto.createHash, os.getenv, path.join).
+      if (NODE_BUILTINS.has(context) || PYTHON_STDLIB.has(context)) continue;
+
       warnings.push({
         type: "UNKNOWN_PACKAGE",
         severity: "info",
-        message: `Could not resolve '${context}' to an installed package. Method calls on it cannot be validated.`,
+        message: `Could not resolve '${context}' to an installed package.`,
         suggestion: `If '${context}' is from an installed package, make sure it appears in your dependencies.`,
         offender: context,
-      })
-      continue
+      });
+      continue;
     }
 
     // Fetch the API surface for this package (with caching + timeout)
-    const surface = await getApiSurface(pkg, projectPath)
+    const surface = await getApiSurface(pkg, projectPath);
 
     // If we got no surface data (no .d.ts files, type stubs, etc.),
     // skip method validation — better to emit nothing than false positives
-    if (surface.length === 0) continue
+    if (surface.length === 0) continue;
 
     for (const id of methods) {
-      if (surface.includes(id.name)) continue  // method exists — all good
+      if (surface.includes(id.name)) continue; // method exists — all good
 
       // Method not found — find the closest real alternative
-      const closest = getClosestMatch(id.name, surface)
+      const closest = getClosestMatch(id.name, surface);
 
       warnings.push({
         type: "HALLUCINATED_METHOD",
@@ -360,9 +469,9 @@ export async function validateSuggestion(
         offender: `${context}.${id.name}`,
         packageName: pkg.canonical,
         installedVersion: pkg.version,
-      })
+      });
     }
   }
 
-  return warnings
+  return warnings;
 }

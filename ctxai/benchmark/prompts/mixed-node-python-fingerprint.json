@@ -1,0 +1,6 @@
+{
+  "name": "Mixed Fingerprint - Node Code Against Node+Python Fingerprint",
+  "projectFingerprint": "node: express@4.18.2\nnode: dotenv@16.0.3\npython: flask@2.3.2\npython: requests@2.31.0",
+  "aiGeneratedCode": "import express from 'express';\nimport dotenv from 'dotenv';\n\ndotenv.config();\nconst app = express();\napp.get('/', (req, res) => res.send('Hello'));\napp.listen(process.env.PORT || 3000);",
+  "expectedViolations": 0
+}

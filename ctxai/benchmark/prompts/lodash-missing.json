@@ -1,0 +1,6 @@
+{
+  "name": "Lodash - Package Not In Dependencies",
+  "projectFingerprint": "node: express@4.18.2\nnode: dotenv@16.0.3",
+  "aiGeneratedCode": "import _ from 'lodash';\n\nconst users = [{ name: 'Alice', age: 30 }, { name: 'Bob', age: 25 }];\nconst sorted = _.sortBy(users, 'age');\nconsole.log(sorted);",
+  "expectedViolations": 1
+}

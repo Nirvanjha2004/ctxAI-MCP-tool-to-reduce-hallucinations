@@ -1,0 +1,6 @@
+{
+  "name": "Multiple Missing Packages - Hallucinated Stack",
+  "projectFingerprint": "node: express@4.18.2",
+  "aiGeneratedCode": "import express from 'express';\nimport helmet from 'helmet';\nimport rateLimit from 'express-rate-limit';\nimport morgan from 'morgan';\n\nconst app = express();\napp.use(helmet());\napp.use(morgan('combined'));\napp.listen(3000);",
+  "expectedViolations": 3
+}

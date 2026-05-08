@@ -1,0 +1,6 @@
+{
+  "name": "Python - Mixed Valid and Hallucinated Imports",
+  "projectFingerprint": "python: requests@2.31.0\npython: flask@2.3.2",
+  "aiGeneratedCode": "import requests\nfrom flask import Flask, jsonify\nfrom celery import Celery\n\napp = Flask(__name__)\ncelery = Celery(app.name)\n\n@app.route('/fetch')\ndef fetch_data():\n    r = requests.get('https://api.example.com/data')\n    return jsonify(r.json())",
+  "expectedViolations": 1
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Edge Case - No Imports, Pure Logic Only",
+  "projectFingerprint": "node: typescript@5.1.6",
+  "aiGeneratedCode": "function fibonacci(n: number): number {\n  if (n <= 1) return n;\n  return fibonacci(n - 1) + fibonacci(n - 2);\n}\n\nconst result = fibonacci(10);\nconsole.log(result);",
+  "expectedViolations": 0
+}

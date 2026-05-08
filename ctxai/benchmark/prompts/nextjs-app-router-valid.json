@@ -1,0 +1,6 @@
+{
+  "name": "Next.js 14 - Valid App Router Usage",
+  "projectFingerprint": "node: next@14.0.0\nnode: react@18.2.0\nnode: react-dom@18.2.0",
+  "aiGeneratedCode": "import { useRouter } from 'next/navigation';\nimport Link from 'next/link';\n\nexport default function NavBar() {\n  return (\n    <nav>\n      <Link href='/'>Home</Link>\n      <Link href='/about'>About</Link>\n    </nav>\n  );\n}",
+  "expectedViolations": 0
+}

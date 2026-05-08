@@ -1,0 +1,6 @@
+{
+  "name": "Edge Case - AI Response With Prose and Code Block",
+  "projectFingerprint": "node: express@4.18.2",
+  "aiGeneratedCode": "Sure! Here's how you can add rate limiting to your Express app:\n\n```typescript\nimport express from 'express';\nimport rateLimit from 'express-rate-limit';\n\nconst app = express();\nconst limiter = rateLimit({ windowMs: 60000, max: 100 });\napp.use(limiter);\napp.listen(3000);\n```\n\nThis limits each IP to 100 requests per minute.",
+  "expectedViolations": 1
+}

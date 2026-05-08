@@ -1,0 +1,6 @@
+{
+  "name": "React - Missing Hook Library (use-debounce)",
+  "projectFingerprint": "node: react@18.2.0\nnode: react-dom@18.2.0",
+  "aiGeneratedCode": "import { useDebounce } from 'use-debounce';\nimport { useState } from 'react';\n\nexport function SearchBox() {\n  const [value, setValue] = useState('');\n  const [debouncedValue] = useDebounce(value, 500);\n  return <input value={value} onChange={e => setValue(e.target.value)} />;\n}",
+  "expectedViolations": 1
+}

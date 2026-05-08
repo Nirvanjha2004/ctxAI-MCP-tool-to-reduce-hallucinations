@@ -1,0 +1,6 @@
+{
+  "name": "Edge Case - Duplicate Import of Same Missing Package Warns Once",
+  "projectFingerprint": "node: express@4.18.2",
+  "aiGeneratedCode": "import helmet from 'helmet';\nimport { contentSecurityPolicy } from 'helmet';\nimport { xssFilter } from 'helmet';\n\nconst app = require('express')();\napp.use(helmet());\napp.listen(3000);",
+  "expectedViolations": 1
+}

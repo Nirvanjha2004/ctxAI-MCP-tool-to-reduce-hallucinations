@@ -1,0 +1,6 @@
+{
+  "name": "TypeORM - ORM Not In Dependencies",
+  "projectFingerprint": "node: express@4.18.2\nnode: pg@8.11.1",
+  "aiGeneratedCode": "import { DataSource, Entity, Column, PrimaryGeneratedColumn } from 'typeorm';\n\n@Entity()\nexport class User {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @Column()\n  name: string;\n}\n\nconst AppDataSource = new DataSource({\n  type: 'postgres',\n  entities: [User]\n});",
+  "expectedViolations": 1
+}

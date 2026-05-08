@@ -1,0 +1,6 @@
+{
+  "name": "Python - Hyphen vs Underscore Package Name Normalization",
+  "projectFingerprint": "python: python-dotenv@1.0.0\npython: scikit-learn@1.3.0",
+  "aiGeneratedCode": "from dotenv import load_dotenv\nfrom sklearn.linear_model import LinearRegression\nimport os\n\nload_dotenv()\nmodel = LinearRegression()\nprint(os.getenv('DATABASE_URL'))",
+  "expectedViolations": 0
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Edge Case - Node.js Built-in Modules Should Not Trigger Violations",
+  "projectFingerprint": "node: express@4.18.2",
+  "aiGeneratedCode": "import fs from 'fs';\nimport path from 'path';\nimport crypto from 'crypto';\nimport express from 'express';\n\nconst app = express();\napp.get('/hash', (req, res) => {\n  const hash = crypto.createHash('sha256').update('hello').digest('hex');\n  res.send(hash);\n});\napp.listen(3000);",
+  "expectedViolations": 0
+}

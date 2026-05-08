@@ -1,0 +1,6 @@
+{
+  "name": "Zod - Schema Validation Library Not Installed",
+  "projectFingerprint": "node: express@4.18.2\nnode: typescript@5.1.6",
+  "aiGeneratedCode": "import { z } from 'zod';\n\nconst UserSchema = z.object({\n  name: z.string().min(1),\n  email: z.string().email(),\n  age: z.number().int().positive()\n});\n\ntype User = z.infer<typeof UserSchema>;",
+  "expectedViolations": 1
+}

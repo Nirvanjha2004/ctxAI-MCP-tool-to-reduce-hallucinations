@@ -1,0 +1,6 @@
+{
+  "name": "SQLAlchemy - ORM Not In Python Dependencies",
+  "projectFingerprint": "python: fastapi@0.100.0\npython: pydantic@2.1.1",
+  "aiGeneratedCode": "from sqlalchemy import create_engine, Column, Integer, String\nfrom sqlalchemy.orm import declarative_base, Session\n\nBase = declarative_base()\n\nclass User(Base):\n    __tablename__ = 'users'\n    id = Column(Integer, primary_key=True)\n    name = Column(String)\n\nengine = create_engine('sqlite:///./test.db')\nBase.metadata.create_all(engine)",
+  "expectedViolations": 1
+}

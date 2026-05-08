@@ -1,0 +1,6 @@
+{
+  "name": "Scoped Package - Alias Resolution (@tanstack/react-query)",
+  "projectFingerprint": "node: @tanstack/react-query@5.0.0\nnode: react@18.2.0",
+  "aiGeneratedCode": "import { useQuery, useMutation } from '@tanstack/react-query';\n\nfunction UserList() {\n  const { data, isLoading } = useQuery({\n    queryKey: ['users'],\n    queryFn: () => fetch('/api/users').then(r => r.json())\n  });\n  return isLoading ? <p>Loading...</p> : <ul>{data.map(u => <li key={u.id}>{u.name}</li>)}</ul>;\n}",
+  "expectedViolations": 0
+}

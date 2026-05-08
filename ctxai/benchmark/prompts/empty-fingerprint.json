@@ -1,0 +1,6 @@
+{
+  "name": "Edge Case - Empty Fingerprint Returns No Violations",
+  "projectFingerprint": "",
+  "aiGeneratedCode": "import express from 'express';\nimport _ from 'lodash';\nimport axios from 'axios';\n\nconst app = express();\napp.listen(3000);",
+  "expectedViolations": 0
+}

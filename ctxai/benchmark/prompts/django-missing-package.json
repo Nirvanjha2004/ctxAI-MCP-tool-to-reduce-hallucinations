@@ -1,0 +1,6 @@
+{
+  "name": "Django - Missing REST Framework",
+  "projectFingerprint": "python: django@4.2.3",
+  "aiGeneratedCode": "from rest_framework.views import APIView\nfrom rest_framework.response import Response\nfrom rest_framework import status\n\nclass UserView(APIView):\n    def get(self, request):\n        return Response({'users': []}, status=status.HTTP_200_OK)",
+  "expectedViolations": 1
+}

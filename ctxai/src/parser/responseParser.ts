@@ -7,42 +7,39 @@ export interface ExtractedIdentifer {
 export function parseResponse(text: string): ExtractedIdentifer[] {
   const identifiers: ExtractedIdentifer[] = [];
 
-  // 1. Extract Imports (ESM and CommonJS)
-  // Matches: import { x } from 'pkg', import x from "pkg", require('pkg')
+  // 1. ESM/CommonJS Imports (Node)
   const importRegex = /(?:import\s+.*\s+from\s+['"]|require\(['"])([@\w\-/]+)['"]\)?/g;
   let match;
   while ((match = importRegex.exec(text)) !== null) {
-    identifiers.push({
-      type: "import",
-      name: match[1],
-    });
+    identifiers.push({ type: "import", name: match[1] });
   }
 
-  // 2. Extract Method Calls
-  // Matches: identifier.methodName(
-  // This is a bit "noisy" so we only look for calls on common patterns
+  // 2. Python Imports (Fixed logic)
+  // 'from x import y' -> only captures x
+  const pyFromRegex = /^\s*from\s+([\w.-]+)/gm; 
+  // 'import x' -> only captures x if it's the start of the line
+  const pyImportRegex = /^\s*import\s+([\w.-]+)/gm;
+
+  while ((match = pyFromRegex.exec(text)) !== null) {
+    identifiers.push({ type: "import", name: match[1].replace(/_/g, "-") });
+  }
+  while ((match = pyImportRegex.exec(text)) !== null) {
+    const pkgName = match[1].replace(/_/g, "-");
+    // Avoid duplicates
+    if (!identifiers.some(i => i.name === pkgName)) {
+      identifiers.push({ type: "import", name: pkgName });
+    }
+  }
+
+  // 3. Method Calls
   const methodRegex = /([\w$]+)\.([\w$]+)\(/g;
   while ((match = methodRegex.exec(text)) !== null) {
     identifiers.push({
       type: "method_call",
       name: match[2],
-      context: match[1], // The variable/package being called
+      context: match[1],
     });
   }
 
-  // 3. Look for Package Mentions in Prose
-  // Matches things like "you should use the express package"
-  const packageKeywords = ["package", "library", "module", "dependency"];
-  packageKeywords.forEach(keyword => {
-    const proseRegex = new RegExp(`${keyword}\\s+['"\`]?([@\\w\\-/]+)['"\`]?`, "gi");
-    while ((match = proseRegex.exec(text)) !== null) {
-      identifiers.push({
-        type: "package_mention",
-        name: match[1],
-      });
-    }
-  });
-
-  // De-duplicate results
   return Array.from(new Map(identifiers.map(id => [`${id.type}:${id.name}`, id])).values());
 }

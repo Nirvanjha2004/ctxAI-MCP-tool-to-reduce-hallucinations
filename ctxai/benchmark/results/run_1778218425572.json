@@ -1,0 +1,47 @@
+[
+  {
+    "testName": "Express - Missing Package Hallucination",
+    "status": "PASS",
+    "expected": 1,
+    "actual": 1,
+    "warningsFound": [
+      "Package 'cors' is not in your project dependencies."
+    ]
+  },
+  {
+    "testName": "FastAPI - Missing Pydantic Settings",
+    "status": "PASS",
+    "expected": 1,
+    "actual": 1,
+    "warningsFound": [
+      "Package 'pydantic-settings' is not in your project dependencies."
+    ]
+  },
+  {
+    "testName": "Next.js 13 - Missing Icon Library",
+    "status": "PASS",
+    "expected": 1,
+    "actual": 1,
+    "warningsFound": [
+      "Package 'lucide-react' is not in your project dependencies."
+    ]
+  },
+  {
+    "testName": "Prisma - Method Hallucination",
+    "status": "PASS",
+    "expected": 1,
+    "actual": 1,
+    "warningsFound": [
+      "Package '@prisma/client' is not in your project dependencies."
+    ]
+  },
+  {
+    "testName": "Prisma - Version Mismatch",
+    "status": "FAIL",
+    "expected": 0,
+    "actual": 1,
+    "warningsFound": [
+      "Package '@prisma/client' is not in your project dependencies."
+    ]
+  }
+]

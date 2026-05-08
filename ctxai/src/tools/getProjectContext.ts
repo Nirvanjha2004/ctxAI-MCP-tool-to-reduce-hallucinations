@@ -252,7 +252,7 @@ export async function getProjectContext(
   let fingerprint: string
 
   try {
-    fingerprint = buildFingerprint(detected as any); 
+    fingerprint = buildFingerprint(detected);
   } catch (err: unknown) {
     const safeReason = "Could not build context fingerprint from detected packages."
     return {

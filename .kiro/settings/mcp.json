@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "ctxai": {
+      "command": "C:\\Users\\nirva\\AppData\\Roaming\\fnm\\node-versions\\v25.9.0\\installation\\node.exe",
+      "args": [
+        "C:\\Users\\nirva\\Desktop\\personal projects\\MCPTool\\ctxai\\build\\index.js"
+      ],
+      "disabled": false,
+      "autoApprove": [
+        "get_project_context",
+        "validate_suggestion",
+        "check_package_safety",
+        "get_package_docs"
+      ]
+    }
+  }
+}

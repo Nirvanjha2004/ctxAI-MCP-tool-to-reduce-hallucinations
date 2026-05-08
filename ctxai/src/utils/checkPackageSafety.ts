@@ -33,7 +33,7 @@ import { fetchNpmPackage, fetchPypiPackage } from "./registryClient.js"
 import {
   detectTyposquat,
   detectConflation,
-} from "../utils/typosquatDetector.js"
+} from "./typosquatDetector.js"
 import { sessionCache } from "../cache/sessionCache.js"
 
 // ---------------------------------------------------------------------------

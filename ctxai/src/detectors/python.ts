@@ -20,6 +20,7 @@ export async function detectPython(projectPath: string): Promise<PackageInfo[]> 
           name: name.trim(),
           version: version ? version.trim() : "unknown",
           source: "python",
+          path: "" // Python packages don't have a local path like node_modules
         });
       }
     });

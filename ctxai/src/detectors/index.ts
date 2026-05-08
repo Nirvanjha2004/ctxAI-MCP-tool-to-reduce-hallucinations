@@ -1,5 +1,5 @@
 import { detectNode, PackageInfo } from "./node.js";
-import { detectPython } from "./python.ts";
+import { detectPython } from "./python.js";
 
 export async function getDetectedPackages(projectPath: string): Promise<PackageInfo[]> {
   // Run both detectors in parallel

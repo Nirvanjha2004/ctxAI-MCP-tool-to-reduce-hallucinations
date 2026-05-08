@@ -6,9 +6,9 @@ import { fetchPypiMetadata } from "../utils/pypiRegistry.js";
  * Fetches version-specific information to help the LLM correct hallucinations.
  */
 export async function getPackageDocs(
-  packageName: string, 
-  version: string, 
-  registry: "npm" | "pypi"
+  packageName: string,
+  version: string,
+  registry: "npm" | "pypi",
 ): Promise<string> {
   try {
     if (registry === "npm") {
@@ -29,7 +29,6 @@ Description: ${versionInfo.description || "No description available."}
 Main Entry: ${versionInfo.main || "index.js"}
 Keywords: ${(versionInfo.keywords || []).join(", ")}
       `.trim();
-
     } else {
       const metadata = await fetchPypiMetadata(packageName);
       if (!metadata) return `Package '${packageName}' not found on PyPI.`;
@@ -40,7 +39,6 @@ Keywords: ${(versionInfo.keywords || []).join(", ")}
 Docs for ${packageName} (PyPI):
 Current Version: ${info.version}
 Summary: ${info.summary}
-Project URL: ${info.project_urls?.Homepage || "N/A"}
       `.trim();
     }
   } catch (error: any) {

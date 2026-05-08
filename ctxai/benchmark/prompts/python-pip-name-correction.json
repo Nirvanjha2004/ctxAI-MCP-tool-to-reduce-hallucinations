@@ -1,0 +1,7 @@
+{
+  "name": "Python - Pip Name Correction (PIL → Pillow, cv2 → opencv-python)",
+  "projectFingerprint": "python: flask@2.3.2",
+  "aiGeneratedCode": "from PIL import Image\nimport cv2\nfrom flask import Flask\n\napp = Flask(__name__)\n\n@app.route('/resize')\ndef resize():\n    img = Image.open('photo.jpg')\n    frame = cv2.imread('video.mp4')\n    return 'ok'",
+  "expectedViolations": 2,
+  "_note": "PIL maps to 'pip install Pillow', cv2 maps to 'pip install opencv-python'. Both are missing from the fingerprint. Validates that MISSING_PACKAGE suggestions use the correct pip install name, not the import name."
+}

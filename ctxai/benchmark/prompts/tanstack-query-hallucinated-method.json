@@ -1,0 +1,16 @@
+{
+  "name": "Scoped Package - Hallucinated Method on @tanstack/react-query",
+  "projectFingerprint": "node: @tanstack/react-query@4.0.0\nnode: react@18.2.0",
+  "aiGeneratedCode": "import { useQuery, QueryClient } from '@tanstack/react-query';\n\nconst queryClient = new QueryClient();\n// useOptimisticQuery does not exist in @tanstack/react-query\nconst result = queryClient.useOptimisticQuery({ queryKey: ['todos'] });",
+  "apiSurfaceOverrides": {
+    "@tanstack/react-query": [
+      "useQuery", "useMutation", "useInfiniteQuery",
+      "useQueryClient", "QueryClient", "QueryClientProvider",
+      "useIsFetching", "useIsMutating", "prefetchQuery",
+      "invalidateQueries", "resetQueries", "cancelQueries",
+      "setQueryData", "getQueryData", "fetchQuery"
+    ]
+  },
+  "expectedViolations": 1,
+  "_note": "useOptimisticQuery is not in the @tanstack/react-query API surface. Expects 1 HALLUCINATED_METHOD warning. Also validates that the scoped package alias (queryClient → @tanstack/react-query) resolves correctly in Layer 2."
+}

@@ -107,6 +107,134 @@ const PYTHON_STDLIB = new Set([
   "zipimport", "zlib", "zoneinfo",
 ]);
 
+/**
+ * Maps Python import names to their correct pip install name.
+ *
+ * Python has a long-standing convention mismatch: the name you use in
+ * `import X` is often completely different from `pip install Y`.
+ * Without this map, the install suggestion in MISSING_PACKAGE warnings
+ * would be wrong (e.g. "pip install rest-framework" instead of
+ * "pip install djangorestframework").
+ *
+ * Sources: PyPI, pip documentation, community conventions.
+ * Keys are the normalised import name (hyphens, lowercase).
+ */
+const PYTHON_IMPORT_TO_PIP: Record<string, string> = {
+  // Django ecosystem
+  "rest-framework":        "djangorestframework",
+  "rest_framework":        "djangorestframework",
+  "django-rest-framework": "djangorestframework",
+  "corsheaders":           "django-cors-headers",
+  "django-cors-headers":   "django-cors-headers",
+  "allauth":               "django-allauth",
+  "crispy-forms":          "django-crispy-forms",
+  "storages":              "django-storages",
+  "celery":                "celery",
+  "kombu":                 "kombu",
+  // Image / CV
+  "pil":                   "Pillow",
+  "pillow":                "Pillow",
+  "cv2":                   "opencv-python",
+  "skimage":               "scikit-image",
+  "sklearn":               "scikit-learn",
+  "scikit-learn":          "scikit-learn",
+  // Data science
+  "numpy":                 "numpy",
+  "pandas":                "pandas",
+  "matplotlib":            "matplotlib",
+  "scipy":                 "scipy",
+  "seaborn":               "seaborn",
+  "plotly":                "plotly",
+  "bokeh":                 "bokeh",
+  "statsmodels":           "statsmodels",
+  // Web / HTTP
+  "bs4":                   "beautifulsoup4",
+  "beautifulsoup4":        "beautifulsoup4",
+  "requests-html":         "requests-html",
+  "httpx":                 "httpx",
+  "aiohttp":               "aiohttp",
+  "starlette":             "starlette",
+  "uvicorn":               "uvicorn",
+  "gunicorn":              "gunicorn",
+  "werkzeug":              "Werkzeug",
+  "jinja2":                "Jinja2",
+  "wtforms":               "WTForms",
+  // Auth / crypto
+  "jwt":                   "PyJWT",
+  "pyjwt":                 "PyJWT",
+  "cryptography":          "cryptography",
+  "crypto":                "pycryptodome",
+  "nacl":                  "PyNaCl",
+  "bcrypt":                "bcrypt",
+  "passlib":               "passlib",
+  // Config / env
+  "dotenv":                "python-dotenv",
+  "python-dotenv":         "python-dotenv",
+  "decouple":              "python-decouple",
+  "dynaconf":              "dynaconf",
+  // Database
+  "sqlalchemy":            "SQLAlchemy",
+  "alembic":               "alembic",
+  "pymongo":               "pymongo",
+  "motor":                 "motor",
+  "redis":                 "redis",
+  "aioredis":              "aioredis",
+  "psycopg2":              "psycopg2-binary",
+  "psycopg":               "psycopg",
+  "aiomysql":              "aiomysql",
+  "tortoise":              "tortoise-orm",
+  "peewee":                "peewee",
+  // Serialisation / validation
+  "yaml":                  "PyYAML",
+  "pyyaml":                "PyYAML",
+  "toml":                  "toml",
+  "msgpack":               "msgpack",
+  "marshmallow":           "marshmallow",
+  "cerberus":              "Cerberus",
+  "voluptuous":            "voluptuous",
+  // Testing
+  "pytest":                "pytest",
+  "mock":                  "mock",
+  "faker":                 "Faker",
+  "factory-boy":           "factory-boy",
+  "hypothesis":            "hypothesis",
+  // Utilities
+  "dateutil":              "python-dateutil",
+  "arrow":                 "arrow",
+  "pendulum":              "pendulum",
+  "click":                 "click",
+  "typer":                 "typer",
+  "rich":                  "rich",
+  "loguru":                "loguru",
+  "tqdm":                  "tqdm",
+  "colorama":              "colorama",
+  "tabulate":              "tabulate",
+  "prettytable":           "prettytable",
+  "serial":                "pyserial",
+  "pkg-resources":         "setuptools",
+  "pkg_resources":         "setuptools",
+  "attr":                  "attrs",
+  "attrs":                 "attrs",
+  "pydantic":              "pydantic",
+  "pydantic-settings":     "pydantic-settings",
+  // Cloud / infra
+  "boto3":                 "boto3",
+  "botocore":              "botocore",
+  "google-cloud":          "google-cloud",
+  "azure":                 "azure",
+  "paramiko":              "paramiko",
+  "fabric":                "fabric",
+};
+
+/**
+ * Returns the correct pip install name for a Python import.
+ * Falls back to the import name itself if no mapping is found.
+ */
+function resolvePipName(importName: string): string {
+  const key = importName.toLowerCase().replace(/_/g, "-");
+  return PYTHON_IMPORT_TO_PIP[key] ?? PYTHON_IMPORT_TO_PIP[importName] ?? importName;
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -362,15 +490,21 @@ async function getApiSurface(
 /**
  * Validates AI-generated code against the developer's installed environment.
  *
- * @param code            Raw AI response text (may include prose + code blocks)
- * @param projectPath     Absolute path to the project root (where package.json lives)
- * @param contextFingerprint  The fingerprint string produced by getProjectContext
- * @returns               Array of ValidationWarnings, empty if everything looks correct
+ * @param code                  Raw AI response text (may include prose + code blocks)
+ * @param projectPath           Absolute path to the project root (where package.json lives)
+ * @param contextFingerprint    The fingerprint string produced by getProjectContext
+ * @param apiSurfaceOverrides   Optional map of packageName → method list, used by the
+ *                              benchmark and tests to inject a known API surface without
+ *                              requiring real node_modules to be present. When a package
+ *                              is found in this map, the override is used instead of
+ *                              reading from disk. Pass undefined in production.
+ * @returns                     Array of ValidationWarnings, empty if everything looks correct
  */
 export async function validateSuggestion(
   code: string,
   projectPath: string,
   contextFingerprint: string,
+  apiSurfaceOverrides?: Map<string, string[]>,
 ): Promise<ValidationWarning[]> {
   const warnings: ValidationWarning[] = [];
 
@@ -400,11 +534,25 @@ export async function validateSuggestion(
     if (warnedMissing.has(id.name)) continue;
     warnedMissing.add(id.name);
 
+    // Determine the correct install command.
+    // For Python packages, the import name often differs from the pip name
+    // (e.g. `from rest_framework` → `pip install djangorestframework`).
+    // We detect Python packages by checking if the fingerprint contains any
+    // python: entries — if so, prefer pip; otherwise default to npm.
+    const hasPythonFingerprint = [...installed.values()].some(p => p.source === "python");
+    const hasNodeFingerprint   = [...installed.values()].some(p => p.source === "node");
+    const pipName  = resolvePipName(id.name);
+    const installCmd = hasPythonFingerprint && !hasNodeFingerprint
+      ? `pip install ${pipName}`
+      : hasNodeFingerprint && !hasPythonFingerprint
+        ? `npm install ${id.name}`
+        : `npm install ${id.name}  # or: pip install ${pipName}`;
+
     warnings.push({
       type: "MISSING_PACKAGE",
       severity: "error",
       message: `'${id.name}' is not listed in your project dependencies.`,
-      suggestion: `Run 'npm install ${id.name}' or 'pip install ${id.name}' to add it, or check if the package name has changed.`,
+      suggestion: `Run '${installCmd}' to add it, or check if the package name has changed.`,
       offender: id.name,
     });
   }
@@ -446,8 +594,13 @@ export async function validateSuggestion(
       continue;
     }
 
-    // Fetch the API surface for this package (with caching + timeout)
-    const surface = await getApiSurface(pkg, projectPath);
+    // Fetch the API surface for this package (with caching + timeout).
+    // apiSurfaceOverrides lets the benchmark inject a known surface without
+    // requiring real node_modules — zero cost in production (map is undefined).
+    const overrideKey = pkg.canonical.toLowerCase();
+    const surface = apiSurfaceOverrides?.has(overrideKey)
+      ? apiSurfaceOverrides.get(overrideKey)!
+      : await getApiSurface(pkg, projectPath);
 
     // If we got no surface data (no .d.ts files, type stubs, etc.),
     // skip method validation — better to emit nothing than false positives

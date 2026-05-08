@@ -1,0 +1,16 @@
+{
+  "name": "Prisma v4 - Valid Method Calls (No Violations)",
+  "projectFingerprint": "node: @prisma/client@4.16.2",
+  "aiGeneratedCode": "import { PrismaClient } from '@prisma/client';\nconst prisma = new PrismaClient();\n\nconst user = await prisma.user.findFirst({ where: { id: 1 } });\nconst users = await prisma.user.findMany();\nconst newUser = await prisma.user.create({ data: { name: 'Alice' } });\nconst orThrow = await prisma.user.findFirstOrThrow({ where: { id: 1 } });",
+  "apiSurfaceOverrides": {
+    "@prisma/client": [
+      "findFirst", "findFirstOrThrow", "findMany", "findUnique", "findUniqueOrThrow",
+      "create", "createMany",
+      "update", "updateMany",
+      "delete", "deleteMany",
+      "upsert", "count", "aggregate", "groupBy"
+    ]
+  },
+  "expectedViolations": 0,
+  "_note": "Prisma v4 includes findFirstOrThrow and findUniqueOrThrow. All method calls here exist in the v4 surface, so no violations expected."
+}

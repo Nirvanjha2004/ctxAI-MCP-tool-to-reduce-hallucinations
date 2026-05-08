@@ -12,6 +12,22 @@ interface PromptTest {
   projectFingerprint: string;
   aiGeneratedCode: string;
   expectedViolations: number;
+  /**
+   * Optional mock API surface for Layer 2 (method hallucination) tests.
+   * Keyed by lowercase package name → array of exported method names.
+   *
+   * Use this when you want to test method-existence checks without requiring
+   * real node_modules to be installed. The benchmark runner passes this map
+   * directly to validateSuggestion as apiSurfaceOverrides.
+   *
+   * Example:
+   *   "apiSurfaceOverrides": {
+   *     "@prisma/client": ["findFirst", "findMany", "create", "update", "delete"]
+   *   }
+   */
+  apiSurfaceOverrides?: Record<string, string[]>;
+  /** Internal notes — ignored by the runner */
+  _note?: string;
 }
 
 async function runBenchmarks() {
@@ -33,11 +49,23 @@ async function runBenchmarks() {
     const content = await fs.readFile(path.join(promptsDir, file), "utf-8");
     const testCase: PromptTest = JSON.parse(content);
 
+    // Convert the plain object overrides (if any) into a Map for the validator.
+    // Keys are lowercased so they match the canonical package name resolution.
+    const overridesMap = testCase.apiSurfaceOverrides
+      ? new Map(
+          Object.entries(testCase.apiSurfaceOverrides).map(([k, v]) => [
+            k.toLowerCase(),
+            v,
+          ])
+        )
+      : undefined;
+
     // Run the AI code through our validator
     const warnings = await validateSuggestion(
       testCase.aiGeneratedCode, 
-      process.cwd(), // Pass current working directory for context  
-      testCase.projectFingerprint
+      process.cwd(),
+      testCase.projectFingerprint,
+      overridesMap,
     );
 
     const actualViolations = warnings.length;

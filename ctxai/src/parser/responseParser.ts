@@ -36,6 +36,19 @@ export interface ExtractedIdentifier {
    * Used downstream to resolve which installed package owns this method.
    */
   context?: string
+  /**
+   * For import: the original module/import name before any pip translation.
+   * e.g. `import cv2` → name="opencv-python", originalName="cv2"
+   * Used by the validator to suppress Layer 2 UNKNOWN_PACKAGE warnings
+   * for method calls on the original import alias (cv2.imread, PIL.open, etc.)
+   */
+  originalName?: string
+  /**
+   * For namespace imports: `import * as ns from 'pkg'` → namespaceAlias="ns"
+   * Used by the validator to resolve method call contexts like ns.method()
+   * back to the package they came from.
+   */
+  namespaceAlias?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -174,7 +187,10 @@ export function parseResponse(text: string): ExtractedIdentifier[] {
   const seen = new Map<string, ExtractedIdentifier>()
 
   function add(id: ExtractedIdentifier) {
-    const key = `${id.type}:${id.name}:${id.context ?? ""}`
+    // Include namespaceAlias in the key so `import * as ns from 'pkg'` is
+    // stored separately from a plain `import { x } from 'pkg'` for the same
+    // package — both need to be in the output for the validator to work.
+    const key = `${id.type}:${id.name}:${id.context ?? ""}:${id.namespaceAlias ?? ""}`
     if (!seen.has(key)) seen.set(key, id)
   }
 
@@ -222,6 +238,19 @@ function parseJavaScript(
     }
   }
 
+  // Namespace imports: `import * as ns from 'pkg'`
+  // Capture the alias so the validator can resolve ns.method() → pkg
+  const nsRe = /import\s+\*\s+as\s+(\w+)\s+from\s+['"]([^'"]+)['"]/g
+  while ((m = nsRe.exec(text)) !== null) {
+    const alias = m[1]
+    const pkg = basePackage(m[2])
+    if (!JS_BUILTINS.has(pkg)) {
+      // Re-emit the import with the namespace alias recorded
+      // (the plain import was already added by esmRe above; this adds the alias)
+      add({ type: "import", name: pkg, namespaceAlias: alias })
+    }
+  }
+
   // CJS: require('pkg') or require("pkg")
   // Deliberately excludes dynamic requires like require(`pkg-${x}`)
   const cjsRe = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g
@@ -249,7 +278,7 @@ function parsePython(
     const base = pythonBaseModule(m[1])
     if (PYTHON_BUILTINS.has(base)) continue
     const pkg = pythonModuleToPackage(base)
-    add({ type: "import", name: pkg })
+    add({ type: "import", name: pkg, originalName: pkg !== base ? base : undefined })
   }
 
   // `import pkg` or `import pkg as alias` or `import pkg1, pkg2, pkg3`
@@ -263,7 +292,7 @@ function parsePython(
       const base = pythonBaseModule(mod)
       if (PYTHON_BUILTINS.has(base)) continue
       const pkg = pythonModuleToPackage(base)
-      add({ type: "import", name: pkg })
+      add({ type: "import", name: pkg, originalName: pkg !== base ? base : undefined })
     }
   }
 }

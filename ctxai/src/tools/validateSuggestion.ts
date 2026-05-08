@@ -517,9 +517,15 @@ export async function validateSuggestion(
   // Extract all identifiers from the AI response
   const identifiers: ExtractedIdentifier[] = parseResponse(code);
 
-  // Track which packages we've already warned about being missing
-  // to avoid duplicate MISSING_PACKAGE warnings
+  // Track which packages we've already warned about being missing.
+  // Also tracks original import names (e.g. "cv2" when pip name is "opencv-python")
+  // so Layer 2 doesn't fire UNKNOWN_PACKAGE for method calls on the original alias.
   const warnedMissing = new Set<string>();
+
+  // Maps namespace alias → resolved package canonical name.
+  // Built from `import * as ns from 'pkg'` patterns so that ns.method()
+  // can be resolved to the correct installed package in Layer 2.
+  const namespaceAliasMap = new Map<string, string>();
 
   // ── Layer 1: Package existence ──────────────────────────────────────────
   for (const id of identifiers) {
@@ -528,11 +534,29 @@ export async function validateSuggestion(
     // Never flag Node.js built-ins or Python stdlib as missing
     if (NODE_BUILTINS.has(id.name) || PYTHON_STDLIB.has(id.name)) continue;
 
+    // Register namespace alias (import * as ns from 'pkg') for Layer 2 resolution
+    if (id.namespaceAlias) {
+      const resolved = resolvePackage(id.name, installed, aliases);
+      if (resolved) {
+        namespaceAliasMap.set(id.namespaceAlias, resolved.canonical);
+      }
+    }
+
     const pkg = resolvePackage(id.name, installed, aliases);
     if (pkg) continue; // found — no warning needed
 
     if (warnedMissing.has(id.name)) continue;
     warnedMissing.add(id.name);
+
+    // Also suppress Layer 2 warnings for the original import name when pip
+    // translation changed it (e.g. cv2 → opencv-python, PIL → Pillow).
+    // The method call parser sees the original name (cv2.imread), not the
+    // translated pip name, so we need both in warnedMissing.
+    if (id.originalName) {
+      warnedMissing.add(id.originalName.toLowerCase());
+      warnedMissing.add(id.originalName.toLowerCase().replace(/-/g, "_"));
+      warnedMissing.add(id.originalName.toLowerCase().replace(/_/g, "-"));
+    }
 
     // Determine the correct install command.
     // For Python packages, the import name often differs from the pip name
@@ -569,19 +593,29 @@ export async function validateSuggestion(
   }
 
   for (const [context, methods] of methodsByContext) {
-    // Resolve the context variable name to an installed package
-    const pkg = resolvePackage(context, installed, aliases);
+    // Resolve the context variable name to an installed package.
+    // Resolution order:
+    //   1. Direct package name / alias (e.g. prisma → @prisma/client)
+    //   2. Namespace alias map (e.g. reactQuery → @tanstack/react-query
+    //      from `import * as reactQuery from '@tanstack/react-query'`)
+    let pkg = resolvePackage(context, installed, aliases);
+
+    if (!pkg && namespaceAliasMap.has(context)) {
+      const canonical = namespaceAliasMap.get(context)!;
+      pkg = resolvePackage(canonical, installed, aliases);
+    }
 
     if (!pkg) {
-      // Fix 1: Skip if this context was already flagged as a MISSING_PACKAGE
-      //        in Layer 1 — avoids double-counting the same package.
+      // Skip if this context was already flagged as a MISSING_PACKAGE
+      // in Layer 1 — avoids double-counting the same package.
       if (warnedMissing.has(context)) continue;
+      if (warnedMissing.has(context.toLowerCase())) continue;
 
-      // Fix 2: Skip known local variable names and single-char aliases.
+      // Skip known local variable names and single-char aliases.
       if (LOCAL_VARIABLE_NAMES.has(context.toLowerCase())) continue;
 
-      // Fix 3: Skip Node.js built-ins and Python stdlib used as method contexts
-      //        (e.g. crypto.createHash, os.getenv, path.join).
+      // Skip Node.js built-ins and Python stdlib used as method contexts
+      // (e.g. crypto.createHash, os.getenv, path.join).
       if (NODE_BUILTINS.has(context) || PYTHON_STDLIB.has(context)) continue;
 
       warnings.push({

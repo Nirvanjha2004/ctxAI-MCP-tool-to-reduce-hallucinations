@@ -1,7 +1,7 @@
 {
   "name": "Scoped Package - Hallucinated Method on @tanstack/react-query",
   "projectFingerprint": "node: @tanstack/react-query@4.0.0\nnode: react@18.2.0",
-  "aiGeneratedCode": "import { useQuery, QueryClient } from '@tanstack/react-query';\n\nconst queryClient = new QueryClient();\n// useOptimisticQuery does not exist in @tanstack/react-query\nconst result = queryClient.useOptimisticQuery({ queryKey: ['todos'] });",
+  "aiGeneratedCode": "import { useQuery } from '@tanstack/react-query';\nimport * as reactQuery from '@tanstack/react-query';\n\n// useOptimisticQuery does not exist in @tanstack/react-query v4\nconst result = reactQuery.useOptimisticQuery({ queryKey: ['todos'] });\nconst valid = reactQuery.useQuery({ queryKey: ['users'], queryFn: () => fetch('/api/users') });",
   "apiSurfaceOverrides": {
     "@tanstack/react-query": [
       "useQuery", "useMutation", "useInfiniteQuery",
@@ -12,5 +12,5 @@
     ]
   },
   "expectedViolations": 1,
-  "_note": "useOptimisticQuery is not in the @tanstack/react-query API surface. Expects 1 HALLUCINATED_METHOD warning. Also validates that the scoped package alias (queryClient → @tanstack/react-query) resolves correctly in Layer 2."
+  "_note": "Uses 'import * as reactQuery' so the namespace variable matches the package alias. reactQuery.useOptimisticQuery is not in the surface → 1 HALLUCINATED_METHOD. reactQuery.useQuery IS in the surface → no warning. Validates scoped package alias resolution in Layer 2."
 }

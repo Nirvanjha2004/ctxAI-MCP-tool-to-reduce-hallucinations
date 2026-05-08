@@ -10,9 +10,10 @@
     "skipLibCheck": true,              /* Faster builds by skipping d.ts checks */
     "forceConsistentCasingInFileNames": true,
     "declaration": true,               /* Generates .d.ts files for better IDE support */
-    "sourceMap": true                  /* Helpful for debugging if things crash */
+    "sourceMap": true,                  /* Helpful for debugging if things crash */
+    "types": ["node"],                    /* Include Node.js types for better compatibility */
+
   },
-  "types": ["node"],                    /* Include Node.js types for better compatibility */
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "benchmark/**/*"],
   "exclude": ["node_modules", "build", "benchmark"]
 }

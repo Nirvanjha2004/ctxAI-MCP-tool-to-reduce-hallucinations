@@ -36,6 +36,7 @@ async function runBenchmarks() {
     // Run the AI code through our validator
     const warnings = await validateSuggestion(
       testCase.aiGeneratedCode, 
+      process.cwd(), // Pass current working directory for context  
       testCase.projectFingerprint
     );
 

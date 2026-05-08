@@ -142,6 +142,21 @@ For Kiro, add to `.kiro/settings/mcp.json`:
 }
 ```
 
+For VS Code (using Cline), edit your `cline_mcp_settings.json` file (typically located at `C:\Users\YOUR_USER\AppData\Roaming\Code\User\globalStorage\rooveterinaryinc.roo-cline\settings\cline_mcp_settings.json` on Windows):
+
+```json
+{
+  "mcpServers": {
+    "ctxai": {
+      "command": "node",
+      "args": ["/absolute/path/to/ctxai/build/index.js"],
+      "disabled": false,
+      "alwaysAllow": []
+    }
+  }
+}
+```
+
 Once connected, the LLM will automatically call `get_project_context` when it needs to understand your environment, and `validate_suggestion` before returning code.
 
 ---

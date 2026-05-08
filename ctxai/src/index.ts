@@ -101,7 +101,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Missing required arguments for validate_suggestion");
         }
 
-        const warnings = await validateSuggestion(code, contextFingerprint);
+        const warnings = await validateSuggestion(code, process.cwd(), contextFingerprint);
         return {
           content: [
             {

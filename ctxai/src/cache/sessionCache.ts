@@ -1,5 +1,6 @@
 export interface CacheEntry {
   fingerprint: string;
+  packageCount: number;
   timestamp: number;
 }
 
@@ -12,7 +13,7 @@ class SessionCache {
   /**
    * Retrieves a cached fingerprint if it exists and hasn't expired.
    */
-  get(projectPath: string): string | null {
+  get(projectPath: string): CacheEntry | null {
     const entry = this.cache.get(projectPath);
     
     if (!entry) {
@@ -26,17 +27,14 @@ class SessionCache {
       return null;
     }
 
-    return entry.fingerprint;
+    return entry;
   }
 
   /**
    * Stores a new fingerprint with the current timestamp.
    */
-  set(projectPath: string, fingerprint: string): void {
-    this.cache.set(projectPath, {
-      fingerprint,
-      timestamp: Date.now(),
-    });
+  set(projectPath: string, session: CacheEntry): void {
+      this.cache.set(projectPath, session);
   }
 
   /**

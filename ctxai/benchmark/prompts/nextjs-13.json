@@ -1,6 +1,6 @@
 {
   "name": "Next.js 13 - Missing Icon Library",
-  "projectFingerprint": "node:next@13.4.12\nnode:react@18.2.0",
+  "projectFingerprint": "node: next@13.4.12\nnode: react@18.2.0",
   "aiGeneratedCode": "import { useRouter } from 'next/navigation';\nimport { Camera } from 'lucide-react';\n\nexport default function Page() {\n  return <Camera />;\n}",
   "expectedViolations": 1
 }

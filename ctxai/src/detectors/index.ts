@@ -1,18 +1,43 @@
-import { detectNode, PackageInfo } from "./node.js";
+import { detectNode } from "./node.js";
 import { detectPython } from "./python.js";
 
-export async function getDetectedPackages(projectPath: string): Promise<PackageInfo[]> {
-  // Run both detectors in parallel
-  const [nodePkgs, pythonPkgs] = await Promise.all([
-    detectNode(projectPath),
-    detectPython(projectPath)
-  ]);
+/**
+ * Individual package metadata
+ */
+export interface PackageInfo {
+  name: string;
+  version: string;
+  source: "node" | "python";
+}
 
-  const allPackages = [...nodePkgs, ...pythonPkgs];
-  
-  if (allPackages.length === 0) {
-    console.error(`No packages detected in ${projectPath}`);
+/**
+ * Updated: DetectedPackages is now an object with language-specific keys
+ */
+export interface DetectedPackages {
+  node: PackageInfo[];
+  python: PackageInfo[];
+}
+
+/**
+ * Orchestrator: Returns a structured object containing all detected dependencies
+ */
+export async function getDetectedPackages(projectPath: string): Promise<DetectedPackages> {
+  // We initialize as an object with empty arrays
+  const results: DetectedPackages = {
+    node: [],
+    python: []
+  };
+
+  try {
+    // 1. Fetch Node packages
+    results.node = await detectNode(projectPath);
+
+    // 2. Fetch Python packages
+    results.python = await detectPython(projectPath);
+
+  } catch (error) {
+    console.error("Error during package detection:", error);
   }
 
-  return allPackages;
+  return results;
 }

@@ -1,63 +1,66 @@
-import { parseResponse, ExtractedIdentifer } from "../parser/responseParser.js";
+import { parseResponse } from "../parser/responseParser.js";
+import { getModuleApiSurface } from "../detectors/node.js";
+import { getPythonApiSurface } from "../detectors/python.js";
+import { getClosestMatch } from "../utils/fuzzy.js";
+import { sessionCache } from "../cache/sessionCache.js";
+import path from "path";
 
-interface ValidationWarning {
-  type: "MISSING_PACKAGE" | "VERSION_MISMATCH" | "POTENTIAL_HALLUCINATION";
-  message: string;
-  suggestion?: string;
-}
-
-/**
- * Tool 2: validate_suggestion
- * Compares AI code against the project fingerprint to catch errors.
- */
 export async function validateSuggestion(
   code: string,
+  projectPath: string, // Changed from fingerprint to projectPath for deep access
   contextFingerprint: string
-): Promise<ValidationWarning[]> {
-  const warnings: ValidationWarning[] = [];
+) {
+  const warnings: any[] = [];
+  const suggestions = parseResponse(code);
   
-  // 1. Parse the fingerprint into a lookup map
-  // Expected format: "source:name@version"
-  const installedPackages = new Map<string, string>();
-  const lines = contextFingerprint.split("\n");
-  
-  lines.forEach(line => {
-    if (line.includes(":") && line.includes("@")) {
-      const [sourceAndName, version] = line.split("@");
-      const [_, name] = sourceAndName.split(":");
-      installedPackages.set(name.trim(), version.trim());
+  // 1. Map installed packages from fingerprint
+  const installed = new Map<string, string>();
+  contextFingerprint.split("\n").forEach(l => {
+    if (l.includes("@")) {
+      const [name, ver] = l.split(":")[1].split("@");
+      installed.set(name, ver);
     }
   });
 
-  // 2. Extract identifiers from the AI's suggested code
-  const suggestions = parseResponse(code);
-
-  // 3. Compare suggestions against installed packages
   for (const item of suggestions) {
-    if (item.type === "import" || item.type === "package_mention") {
-      const isInstalled = installedPackages.has(item.name);
-      
-      if (!isInstalled) {
-        // If it's a common built-in (like 'fs' or 'path'), skip
-        const nodeBuiltins = ["fs", "path", "os", "crypto", "http", "https"];
-        if (nodeBuiltins.includes(item.name)) continue;
-
-        warnings.push({
-          type: "MISSING_PACKAGE",
-          message: `The AI suggested using '${item.name}', but it is not installed in your project.`,
-          suggestion: `Run 'npm install ${item.name}' or 'pip install ${item.name}' if you wish to use it.`
-        });
-      }
+    // Layer 1: Check Package Existence
+    if (!installed.has(item.name) && item.type === "import") {
+      warnings.push({
+        type: "MISSING_PACKAGE",
+        message: `Package '${item.name}' is not in your project dependencies.`,
+        suggestion: `Install it via npm/pip first.`
+      });
+      continue;
     }
 
-    // 4. Check for potential method hallucinations
-    // If the package is installed, we check if the call looks suspicious
-    // (Note: Deep method validation happens in Tool 3: get_package_docs)
+    // Layer 2: Deep Method Validation
     if (item.type === "method_call" && item.context) {
-      const pkgVersion = installedPackages.get(item.context);
-      if (pkgVersion) {
-        // Here we could flag notoriously changed methods 
-        // e.g., 'app.listen' in very old vs new versions
+      const pkgName = item.context;
+      const version = installed.get(pkgName);
+      
+      if (version) {
+        // Use Cache to avoid re-parsing .d.ts files every prompt
+        const cacheKey = `api:${pkgName}:${version}`;
+        let methods = sessionCache.get(cacheKey) as unknown as string[];
+
+        if (!methods) {
+          // Fetch API surface (Node or Python)
+          const isNode = item.context === pkgName; // Simplified logic
+          methods = isNode 
+            ? await getModuleApiSurface(path.join(projectPath, "node_modules", pkgName))
+            : await getPythonApiSurface(pkgName);
+          
+          sessionCache.set(cacheKey, JSON.stringify(methods));
+        }
+
+        if (methods.length > 0 && !methods.includes(item.name)) {
+          const closest = getClosestMatch(item.name, methods);
+          warnings.push({
+            type: "POTENTIAL_HALLUCINATION",
+            message: `'${item.name}' is not available in ${pkgName}@${version}.`,
+            suggestion: closest ? `Did you mean '${closest}'?` : `Check the package documentation.`
+          });
+        }
       }
     }
   }
